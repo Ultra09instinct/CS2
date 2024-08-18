@@ -1,0 +1,40 @@
+M = 16;
+numSymbols = 1e5;
+SNRdB = 0:2:20; 
+EbNo = SNRdB - 10*log10(log2(M)); 
+numSNR = length(SNRdB);
+SER = zeros(1, numSNR);
+gainImbalance = 0.1;
+phaseMismatch = 0.05; 
+dcOffsetI = 0.05;
+dcOffsetQ = 0.05;
+for k = 1:numSNR
+    
+    dataSymbols = randi([0 M-1], numSymbols, 1);
+    
+    modulatedSignal = qammod(dataSymbols, M, 'UnitAveragePower', true);
+    
+    I = real(modulatedSignal);
+    Q = imag(modulatedSignal);
+    receivedSignal = (1 + gainImbalance) * I + 1i * (1 - gainImbalance) * Q;
+    
+    receivedSignal = receivedSignal .* exp(1i * phaseMismatch);
+    receivedSignal = receivedSignal + dcOffsetI + 1i * dcOffsetQ;
+    receivedSignal = awgn(receivedSignal, SNRdB(k), 'measured');
+    demodulatedSymbols = qamdemod(receivedSignal, M, 'UnitAveragePower', true);
+    SER(k) = sum(dataSymbols ~= demodulatedSymbols) / numSymbols;
+end
+figure;
+semilogy(EbNo, SER, 'b-o');
+xlabel('E_b/N_0 (dB)');
+ylabel('Symbol Error Rate (SER)');
+title('SER vs E_b/N_0 for 16-QAM with Receiver Impairments');
+grid on;
+fprintf('SNR (dB)    SER\n');
+fprintf('--------    ---\n');
+for k = 1:numSNR
+    fprintf('%8.2f    %e\n', SNRdB(k), SER(k));
+end
+scatterplot(receivedSignal);
+title('Received Signal Constellation with Receiver Impairments (SNR = 20 dB)');
+grid on;
